@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JPG → PDF Converter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #0d0d0f; --surface: #16161a; --border: #2a2a32;
+    --accent: #f0e040; --accent2: #40e0f0; --text: #e8e8f0; --muted: #6b6b80;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg); color: var(--text); font-family: 'Sora', sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; padding: 40px 20px 60px;
+  }
+
+  /* Language Switcher */
+  .lang-bar {
+    display: flex; gap: 6px; margin-bottom: 36px;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .lang-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 6px; padding: 5px 11px; font-family: 'Space Mono', monospace;
+    font-size: 0.72rem; letter-spacing: 0.06em; cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  .lang-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .lang-btn.active { border-color: var(--accent); color: #000; background: var(--accent); }
+
+  header { text-align: center; margin-bottom: 48px; }
+
+  .logo {
+    font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.4em;
+    color: var(--accent); text-transform: uppercase; margin-bottom: 12px;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 600;
+    line-height: 1.1; letter-spacing: -0.03em;
+  }
+  h1 span { color: var(--accent); }
+
+  .subtitle { margin-top: 10px; color: var(--muted); font-size: 0.95rem; font-weight: 300; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 36px; width: 100%; max-width: 680px;
+  }
+
+  .dropzone {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 48px 24px;
+    text-align: center; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s; position: relative;
+  }
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--accent); background: rgba(240,224,64,0.04);
+  }
+  .dropzone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .drop-icon { font-size: 2.5rem; margin-bottom: 12px; display: block; filter: grayscale(0.3); }
+  .drop-label { font-size: 1rem; font-weight: 600; color: var(--text); }
+  .drop-hint { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+
+  .options { display: flex; gap: 16px; margin-top: 24px; flex-wrap: wrap; }
+  .opt-group { flex: 1; min-width: 140px; }
+  .opt-group label {
+    display: block; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px; font-family: 'Space Mono', monospace;
+  }
+  .opt-group select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: 8px 12px;
+    font-family: 'Sora', sans-serif; font-size: 0.9rem; outline: none; transition: border-color 0.2s;
+  }
+  .opt-group select:focus { border-color: var(--accent); }
+
+  .btn {
+    margin-top: 28px; width: 100%; padding: 14px; background: var(--accent); color: #000;
+    border: none; border-radius: 10px; font-family: 'Space Mono', monospace; font-size: 0.9rem;
+    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  }
+  .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(240,224,64,0.3); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .progress-wrap { margin-top: 24px; display: none; }
+  .progress-bar-bg { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 99px; width: 0%; transition: width 0.3s ease; }
+  .progress-text { font-family: 'Space Mono', monospace; font-size: 0.78rem; color: var(--muted); margin-top: 8px; text-align: center; }
+
+  .results { margin-top: 40px; width: 100%; max-width: 680px; }
+  .results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .results-title { font-family: 'Space Mono', monospace; font-size: 0.8rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent2); }
+  .btn-dl-all {
+    padding: 8px 16px; background: transparent; border: 1px solid var(--accent2);
+    color: var(--accent2); border-radius: 8px; font-family: 'Space Mono', monospace;
+    font-size: 0.75rem; cursor: pointer; transition: background 0.2s, color 0.2s;
+  }
+  .btn-dl-all:hover { background: var(--accent2); color: #000; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+  .thumb-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden; transition: border-color 0.2s, transform 0.2s;
+  }
+  .thumb-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+  .thumb-card img { width: 100%; display: block; aspect-ratio: 0.707; object-fit: cover; background: #111; }
+  .thumb-footer { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; }
+  .page-label { font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--muted); }
+  .btn-dl {
+    font-size: 0.72rem; background: none; border: none; color: var(--accent);
+    cursor: pointer; font-family: 'Space Mono', monospace; text-decoration: underline;
+    padding: 0; transition: color 0.15s;
+  }
+  .btn-dl:hover { color: #fff; }
+
+  /* Donation */
+  .donate-wrap { margin-top: 40px; text-align: center; }
+  #donateBtn {
+    display: inline-block; padding: 12px 28px; background: transparent;
+    border: 1.5px solid #f0b429; color: #f0b429; border-radius: 10px;
+    font-family: 'Space Mono', monospace; font-size: 0.85rem; font-weight: 700;
+    letter-spacing: 0.06em; text-decoration: none; text-transform: uppercase;
+    transition: background 0.2s, color 0.2s, transform 0.15s, box-shadow 0.15s;
+  }
+  #donateBtn:hover { background: #f0b429; color: #000; transform: translateY(-2px); box-shadow: 0 6px 24px rgba(240,180,41,0.35); }
+  .donate-sub { margin-top: 8px; font-size: 0.75rem; color: var(--muted); font-family: 'Space Mono', monospace; }
+</style>
+</head>
+<body>
+
+<div class="lang-bar" id="langBar">
+  <button class="lang-btn" data-lang="en">🇬🇧 EN</button>
+  <button class="lang-btn" data-lang="fr">🇫🇷 FR</button>
+  <button class="lang-btn" data-lang="es">🇪🇸 ES</button>
+  <button class="lang-btn active" data-lang="pt">🇵🇹 PT</button>
+  <button class="lang-btn" data-lang="de">🇩🇪 DE</button>
+  <button class="lang-btn" data-lang="it">🇮🇹 IT</button>
+</div>
+
+<header>
+  <div class="logo" id="t-logo"></div>
+  <h1>JPG <span>→</span> PDF</h1>
+  <p class="subtitle" id="t-subtitle"></p>
+</header>
+
+<div class="card">
+  <div class="dropzone" id="dropzone">
+    <input type="file" id="fileInput" accept=".jpg,.jpeg,.png" multiple />
+    <span class="drop-icon">🖼️</span>
+    <div class="drop-label" id="t-dropLabel"></div>
+    <div class="drop-hint" id="fileName"></div>
+  </div>
+
+  <div class="options">
+    <div class="opt-group">
+      <label id="t-pageSizeLabel"></label>
+      <select id="pageSize">
+        <option value="a4" id="t-psA4"></option>
+        <option value="letter" id="t-psLetter"></option>
+        <option value="a3" id="t-psA3"></option>
+        <option value="fit" id="t-psFit"></option>
+      </select>
+    </div>
+    <div class="opt-group">
+      <label id="t-orientLabel"></label>
+      <select id="orientation">
+        <option value="auto" id="t-orAuto"></option>
+        <option value="portrait" id="t-orPortrait"></option>
+        <option value="landscape" id="t-orLandscape"></option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn" id="convertBtn" disabled></button>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+    <div class="progress-text" id="progressText"></div>
+  </div>
+</div>
+
+<div class="results" id="results" style="display:none">
+  <div class="results-header">
+    <span class="results-title" id="resultsTitle"></span>
+    <button class="btn-dl-all" id="dlAll">⬇ <span id="t-dlAll"></span></button>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="donate-wrap">
+  <a href="https://www.paypal.com/paypalme/edobgames" target="_blank" rel="noopener" id="donateBtn">
+    ☕ <span id="t-donate"></span>
+  </a>
+  <p class="donate-sub" id="t-donateSub"></p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  const { jsPDF } = window.jspdf;
+
+  const T_ALL = {
+    pt: {
+      logo:'Ferramenta Web', subtitle:'Junta várias imagens JPG num único ficheiro PDF — tudo no browser, sem upload para servidores.',
+      dropLabel:'Arrasta as imagens aqui ou clica para escolher', dropHint:'Ficheiros .jpg / .jpeg / .png',
+      pageSizeLabel:'Tamanho da Página', orientLabel:'Orientação',
+      psA4:'A4', psLetter:'Letter', psA3:'A3', psFit:'Ajustar à Imagem',
+      orAuto:'Auto (por imagem)', orPortrait:'Vertical', orLandscape:'Horizontal',
+      convertBtn:'Criar PDF', dlAll:'Descarregar PDF',
+      donate:'Apoiar o Projeto', donateSub:'Se esta ferramenta foi útil, considera fazer uma doação 🙏',
+      processing:(i,t)=>`A processar imagem ${i} de ${t}…`,
+      done:(t)=>`✓ PDF criado com ${t} ${t>1?'imagens':'imagem'}!`,
+      resultTitle:(t)=>`${t} ${t>1?'imagens':'imagem'} no PDF`,
+      pageLabel:(i)=>`Img. ${i}`, error:'Erro ao criar o PDF: ',
+      filesSelected:(n)=>`ficheiro${n>1?'s':''} selecionado${n>1?'s':''}`,
+    },
+    en: {
+      logo:'Web Tool', subtitle:'Merge multiple JPG images into a single PDF file — all in the browser, no server uploads.',
+      dropLabel:'Drag your images here or click to choose', dropHint:'.jpg / .jpeg / .png files',
+      pageSizeLabel:'Page Size', orientLabel:'Orientation',
+      psA4:'A4', psLetter:'Letter', psA3:'A3', psFit:'Fit to Image',
+      orAuto:'Auto (per image)', orPortrait:'Portrait', orLandscape:'Landscape',
+      convertBtn:'Create PDF', dlAll:'Download PDF',
+      donate:'Support the Project', donateSub:'If this tool was useful, consider making a donation 🙏',
+      processing:(i,t)=>`Processing image ${i} of ${t}…`,
+      done:(t)=>`✓ PDF created with ${t} image${t>1?'s':''}!`,
+      resultTitle:(t)=>`${t} image${t>1?'s':''} in PDF`,
+      pageLabel:(i)=>`Img. ${i}`, error:'Error creating PDF: ',
+      filesSelected:(n)=>`file${n>1?'s':''} selected`,
+    },
+    fr: {
+      logo:'Outil Web', subtitle:'Fusionnez plusieurs images JPG en un seul fichier PDF — tout dans le navigateur, sans envoi au serveur.',
+      dropLabel:'Glissez les images ici ou cliquez pour choisir', dropHint:'Fichiers .jpg / .jpeg / .png',
+      pageSizeLabel:'Taille de Page', orientLabel:'Orientation',
+      psA4:'A4', psLetter:'Letter', psA3:'A3', psFit:'Ajuster à l\'image',
+      orAuto:'Auto (par image)', orPortrait:'Portrait', orLandscape:'Paysage',
+      convertBtn:'Créer PDF', dlAll:'Télécharger PDF',
+      donate:'Soutenir le projet', donateSub:'Si cet outil vous a été utile, pensez à faire un don 🙏',
+      processing:(i,t)=>`Traitement de l'image ${i} sur ${t}…`,
+      done:(t)=>`✓ PDF créé avec ${t} image${t>1?'s':''} !`,
+      resultTitle:(t)=>`${t} image${t>1?'s':''} dans le PDF`,
+      pageLabel:(i)=>`Img. ${i}`, error:'Erreur lors de la création du PDF : ',
+      filesSelected:(n)=>`fichier${n>1?'s':''} sélectionné${n>1?'s':''}`,
+    },
+    es: {
+      logo:'Herramienta Web', subtitle:'Une varias imágenes JPG en un único archivo PDF — todo en el navegador, sin subir al servidor.',
+      dropLabel:'Arrastra las imágenes aquí o haz clic para elegir', dropHint:'Archivos .jpg / .jpeg / .png',
+      pageSizeLabel:'Tamaño de Página', orientLabel:'Orientación',
+      psA4:'A4', psLetter:'Letter', psA3:'A3', psFit:'Ajustar a la imagen',
+      orAuto:'Auto (por imagen)', orPortrait:'Vertical', orLandscape:'Horizontal',
+      convertBtn:'Crear PDF', dlAll:'Descargar PDF',
+      donate:'Apoyar el Proyecto', donateSub:'Si esta herramienta fue útil, considera hacer una donación 🙏',
+      processing:(i,t)=>`Procesando imagen ${i} de ${t}…`,
+      done:(t)=>`✓ ¡PDF creado con ${t} imagen${t>1?'es':''}!`,
+      resultTitle:(t)=>`${t} imagen${t>1?'es':''} en el PDF`,
+      pageLabel:(i)=>`Img. ${i}`, error:'Error al crear el PDF: ',
+      filesSelected:(n)=>`archivo${n>1?'s':''} seleccionado${n>1?'s':''}`,
+    },
+    de: {
+      logo:'Web-Werkzeug', subtitle:'Mehrere JPG-Bilder zu einer PDF-Datei zusammenführen — alles im Browser, kein Upload auf Server.',
+      dropLabel:'Bilder hier hineinziehen oder klicken zum Auswählen', dropHint:'.jpg / .jpeg / .png Dateien',
+      pageSizeLabel:'Seitengröße', orientLabel:'Ausrichtung',
+      psA4:'A4', psLetter:'Letter', psA3:'A3', psFit:'An Bild anpassen',
+      orAuto:'Auto (pro Bild)', orPortrait:'Hochformat', orLandscape:'Querformat',
+      convertBtn:'PDF erstellen', dlAll:'PDF herunterladen',
+      donate:'Projekt unterstützen', donateSub:'Wenn dieses Tool nützlich war, erwäge eine Spende 🙏',
+      processing:(i,t)=>`Verarbeite Bild ${i} von ${t}…`,
+      done:(t)=>`✓ PDF mit ${t} ${t>1?'Bildern':'Bild'} erstellt!`,
+      resultTitle:(t)=>`${t} Bild${t>1?'er':''} im PDF`,
+      pageLabel:(i)=>`Bild ${i}`, error:'Fehler beim Erstellen der PDF: ',
+      filesSelected:(n)=>`Datei${n>1?'en':''} ausgewählt`,
+    },
+    it: {
+      logo:'Strumento Web', subtitle:"Unisce più immagini JPG in un unico file PDF — tutto nel browser, senza caricare sui server.",
+      dropLabel:'Trascina le immagini qui o clicca per scegliere', dropHint:'File .jpg / .jpeg / .png',
+      pageSizeLabel:'Formato Pagina', orientLabel:'Orientamento',
+      psA4:'A4', psLetter:'Letter', psA3:'A3', psFit:'Adatta all\'immagine',
+      orAuto:'Auto (per immagine)', orPortrait:'Verticale', orLandscape:'Orizzontale',
+      convertBtn:'Crea PDF', dlAll:'Scarica PDF',
+      donate:'Supporta il Progetto', donateSub:'Se questo strumento è stato utile, considera una donazione 🙏',
+      processing:(i,t)=>`Elaborazione immagine ${i} di ${t}…`,
+      done:(t)=>`✓ PDF creato con ${t} immagin${t>1?'i':'e'}!`,
+      resultTitle:(t)=>`${t} immagin${t>1?'i':'e'} nel PDF`,
+      pageLabel:(i)=>`Img. ${i}`, error:"Errore durante la creazione del PDF: ",
+      filesSelected:(n)=>`file selezionat${n>1?'i':'o'}`,
+    },
+  };
+
+  let currentLang = 'pt';
+  let selectedFiles = [];
+  let generatedImages = [];
+  let pdfBlob = null;
+
+  function applyLang(lang) {
+    const T = T_ALL[lang];
+    currentLang = lang;
+    document.documentElement.lang = lang;
+    document.getElementById('t-logo').textContent         = T.logo;
+    document.getElementById('t-subtitle').textContent     = T.subtitle;
+    document.getElementById('t-dropLabel').textContent    = T.dropLabel;
+    document.getElementById('t-pageSizeLabel').textContent= T.pageSizeLabel;
+    document.getElementById('t-orientLabel').textContent  = T.orientLabel;
+    document.getElementById('t-psA4').textContent         = T.psA4;
+    document.getElementById('t-psLetter').textContent     = T.psLetter;
+    document.getElementById('t-psA3').textContent         = T.psA3;
+    document.getElementById('t-psFit').textContent        = T.psFit;
+    document.getElementById('t-orAuto').textContent       = T.orAuto;
+    document.getElementById('t-orPortrait').textContent   = T.orPortrait;
+    document.getElementById('t-orLandscape').textContent  = T.orLandscape;
+    document.getElementById('convertBtn').textContent     = T.convertBtn;
+    document.getElementById('t-dlAll').textContent        = T.dlAll;
+    document.getElementById('t-donate').textContent       = T.donate;
+    document.getElementById('t-donateSub').textContent    = T.donateSub;
+    if (!selectedFiles.length) document.getElementById('fileName').textContent = T.dropHint;
+    document.querySelectorAll('.lang-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.lang === lang));
+  }
+
+  document.getElementById('langBar').addEventListener('click', e => {
+    if (e.target.classList.contains('lang-btn')) applyLang(e.target.dataset.lang);
+  });
+
+  applyLang('pt');
+
+  // ── App ───────────────────────────────────────────────────────────────────
+  const fileInput    = document.getElementById('fileInput');
+  const dropzone     = document.getElementById('dropzone');
+  const fileNameEl   = document.getElementById('fileName');
+  const convertBtn   = document.getElementById('convertBtn');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressBar  = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const resultsDiv   = document.getElementById('results');
+  const grid         = document.getElementById('grid');
+  const resultsTitle = document.getElementById('resultsTitle');
+  const dlAll        = document.getElementById('dlAll');
+
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault(); dropzone.classList.remove('drag-over');
+    const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+    if (files.length) setFiles(files);
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) setFiles([...fileInput.files]);
+  });
+
+  function setFiles(files) {
+    selectedFiles = files;
+    const T = T_ALL[currentLang];
+    const totalMB = (files.reduce((a,f)=>a+f.size,0)/1024/1024).toFixed(2);
+    fileNameEl.textContent = `📎 ${files.length} ${T.filesSelected(files.length)} (${totalMB} MB)`;
+    convertBtn.disabled = false;
+    resultsDiv.style.display = 'none';
+    grid.innerHTML = '';
+    generatedImages = [];
+    pdfBlob = null;
+  }
+
+  convertBtn.addEventListener('click', async () => {
+    if (!selectedFiles.length) return;
+    const T = T_ALL[currentLang];
+    convertBtn.disabled = true;
+    progressWrap.style.display = 'block';
+    progressBar.style.width = '0%';
+    grid.innerHTML = ''; generatedImages = [];
+    resultsDiv.style.display = 'none';
+    pdfBlob = null;
+
+    const pageSizeVal = document.getElementById('pageSize').value;
+    const orientVal   = document.getElementById('orientation').value;
+
+    const pageDims = { a4:[210,297], letter:[215.9,279.4], a3:[297,420] };
+
+    try {
+      let pdf = null;
+      const total = selectedFiles.length;
+
+      for (let i = 0; i < total; i++) {
+        const file = selectedFiles[i];
+        progressText.textContent = T.processing(i + 1, total);
+        progressBar.style.width = `${Math.round(i / total * 100)}%`;
+
+        const dataUrl = await fileToDataUrl(file);
+
+        const img = await loadImage(dataUrl);
+        const imgW = img.naturalWidth;
+        const imgH = img.naturalHeight;
+
+        // Determine orientation
+        let orient = orientVal;
+        if (orient === 'auto') orient = imgW >= imgH ? 'landscape' : 'portrait';
+
+        // Determine page size in mm
+        let pw, ph;
+        if (pageSizeVal === 'fit') {
+          // 96 DPI assumption → px to mm
+          pw = imgW * 25.4 / 96;
+          ph = imgH * 25.4 / 96;
+        } else {
+          [pw, ph] = pageDims[pageSizeVal];
+          if (orient === 'landscape') [pw, ph] = [ph, pw];
+        }
+
+        if (i === 0) {
+          pdf = new jsPDF({ unit: 'mm', format: [pw, ph] });
+        } else {
+          pdf.addPage({ format: [pw, ph] });
+        }
+
+        // Fit image into page keeping aspect ratio
+        const ratio = Math.min(pw / (imgW * 25.4 / 96), ph / (imgH * 25.4 / 96));
+        const drawW = imgW * 25.4 / 96 * ratio;
+        const drawH = imgH * 25.4 / 96 * ratio;
+        const x = (pw - drawW) / 2;
+        const y = (ph - drawH) / 2;
+
+        const fmt = file.type === 'image/png' ? 'PNG' : 'JPEG';
+        pdf.addImage(dataUrl, fmt, x, y, drawW, drawH);
+
+        generatedImages.push({ dataUrl, name: file.name });
+
+        const card = document.createElement('div');
+        card.className = 'thumb-card';
+        card.innerHTML = `
+          <img src="${dataUrl}" loading="lazy" alt="${T.pageLabel(i+1)}" />
+          <div class="thumb-footer">
+            <span class="page-label">${T.pageLabel(i+1)}</span>
+            <span class="page-label" style="color:var(--muted);font-size:0.65rem;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${file.name}</span>
+          </div>`;
+        grid.appendChild(card);
+      }
+
+      progressBar.style.width = '100%';
+      progressText.textContent = T.done(total);
+      resultsTitle.textContent = T.resultTitle(total);
+
+      pdfBlob = pdf.output('blob');
+
+      resultsDiv.style.display = 'block';
+      convertBtn.disabled = false;
+
+    } catch(err) {
+      progressText.textContent = T.error + err.message;
+      convertBtn.disabled = false;
+    }
+  });
+
+  dlAll.addEventListener('click', () => {
+    if (!pdfBlob) return;
+    const url = URL.createObjectURL(pdfBlob);
+    const a   = document.createElement('a');
+    a.href = url; a.download = 'images.pdf'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  });
+
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(new Error('Read failed'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = src;
+    });
+  }
+</script>
+</body>
+</html>
