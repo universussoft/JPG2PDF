@@ -2,8 +2,6 @@
 
 A sleek, browser-based tool to merge multiple JPG/PNG images into a single PDF file. **Everything runs locally** — no images are uploaded to any server.
 
-![JPG to PDF Converter Screenshot](screenshot.png) *(You may want to add a screenshot)*
-
 ## ✨ Features
 
 - **100% client-side**: All processing happens in your browser. Your images never leave your device.
